@@ -222,5 +222,3 @@ That tool is designed for interactive splitting of a **single** commit inside a 
 ## License
 
 MIT
-
-```
