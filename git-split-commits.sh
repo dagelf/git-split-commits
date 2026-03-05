@@ -209,11 +209,6 @@ fi
 CLEAN=()
 CONFLICTING=()
 
-for sha in "${COMMITS[@]}"; do
-  b="$(branch_for_commit "$PREFIX" "$sha")"
-  echo "==> Preparing $b from $BASE"
-  git switch --quiet -c "$b" "$BASE"
-
   # Try apply without committing so we can detect conflicts and abort cleanly.
   set +e
   git cherry-pick --no-commit "$sha" >/dev/null 2>&1
@@ -221,17 +216,23 @@ for sha in "${COMMITS[@]}"; do
   set -e
 
   if (( rc == 0 )); then
-    # Commit with original message/author/date
-    git commit --no-edit >/dev/null
-    echo "    OK (clean)"
-    CLEAN+=("$sha:$b")
-    if [[ "$DO_PUSH" == "1" ]]; then
-      push_branch "$b" >/dev/null
-      echo "    pushed"
+    if git diff --cached --quiet; then
+      echo "    SKIP (empty on base)"
+      CLEAN+=("$sha:$b:skipped")
+    else
+      author="$(git show -s --format='%an <%ae>' "$sha")"
+      # Optional: preserve original committer date too
+      GIT_COMMITTER_DATE="$(git show -s --format='%cI' "$sha")" \
+        git commit -C "$sha" --author="$author" >/dev/null
+      echo "    OK (clean)"
+      CLEAN+=("$sha:$b")
+      if [[ "$DO_PUSH" == "1" ]]; then
+        push_branch "$b" >/dev/null
+        echo "    pushed"
+      fi
     fi
   else
     echo "    CONFLICT (defer)"
-    # Abort and queue it for the second pass
     git cherry-pick --abort >/dev/null 2>&1 || true
     CONFLICTING+=("$sha:$b")
   fi
