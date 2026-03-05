@@ -209,9 +209,13 @@ fi
 CLEAN=()
 CONFLICTING=()
 
-  # Try apply without committing so we can detect conflicts and abort cleanly.
+for sha in "${COMMITS[@]}"; do
+  b="$(branch_for_commit "$PREFIX" "$sha")"
+  echo "==> Preparing $b from $BASE"
+  git switch --quiet -c "$b" "$BASE"
+
   set +e
-  git cherry-pick --no-commit "$sha" >/dev/null 2>&1
+  out="$(git cherry-pick --no-commit "$sha" 2>&1)"
   rc=$?
   set -e
 
@@ -221,9 +225,13 @@ CONFLICTING=()
       CLEAN+=("$sha:$b:skipped")
     else
       author="$(git show -s --format='%an <%ae>' "$sha")"
-      # Optional: preserve original committer date too
-      GIT_COMMITTER_DATE="$(git show -s --format='%cI' "$sha")" \
+      author_date="$(git show -s --format='%aI' "$sha")"
+      committer_date="$(git show -s --format='%cI' "$sha")"
+
+      GIT_AUTHOR_DATE="$author_date" \
+      GIT_COMMITTER_DATE="$committer_date" \
         git commit -C "$sha" --author="$author" >/dev/null
+
       echo "    OK (clean)"
       CLEAN+=("$sha:$b")
       if [[ "$DO_PUSH" == "1" ]]; then
@@ -232,9 +240,16 @@ CONFLICTING=()
       fi
     fi
   else
-    echo "    CONFLICT (defer)"
-    git cherry-pick --abort >/dev/null 2>&1 || true
-    CONFLICTING+=("$sha:$b")
+    # Only defer real conflicts; otherwise stop with the error.
+    if grep -qiE 'conflict|merge conflict' <<<"$out"; then
+      echo "    CONFLICT (defer)"
+      git cherry-pick --abort >/dev/null 2>&1 || true
+      CONFLICTING+=("$sha:$b")
+    else
+      echo "    ERROR (not a conflict): $sha"
+      echo "$out" >&2
+      exit 1
+    fi
   fi
 done
 
