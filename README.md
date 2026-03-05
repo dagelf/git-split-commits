@@ -36,7 +36,7 @@ So you can open 4 separate PRs.
 
 If you want to split a **single commit** into **multiple commits** while keeping the branch history rewritten and the final tree identical, use Tom Ellis' `split.sh` instead:
 
-- `split.sh` (single-commit splitter): https://raw.githubusercontent.com/tomjaguarpaw/git-split/refs/heads/master/split.sh
+- `split.sh` (single-commit splitter): https://github.com/tomjaguarpaw/git-split/ https://raw.githubusercontent.com/tomjaguarpaw/git-split/refs/heads/master/split.sh
 
 In short:
 
